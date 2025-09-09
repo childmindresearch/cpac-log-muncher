@@ -52,7 +52,11 @@ RX_CPAC_ERROR3_LOOKUP = re.compile(
     r"C-PAC says: None of the listed resources are "
     r"in the resource pool:\s+" + "([^\n]*)"
 )
-RXS_CPAC_ERROR_LOOKUP = [RX_CPAC_ERROR1_LOOKUP, RX_CPAC_ERROR2_LOOKUP, RX_CPAC_ERROR3_LOOKUP]
+RXS_CPAC_ERROR_LOOKUP = [
+    RX_CPAC_ERROR1_LOOKUP,
+    RX_CPAC_ERROR2_LOOKUP,
+    RX_CPAC_ERROR3_LOOKUP,
+]
 
 TEMPLATE_REPORT_MD = """# CPAC run report\n
 {header}\n
@@ -83,7 +87,8 @@ def find_log_files(root: pl.Path) -> Generator[pl.Path, None, None]:
 def find_failed_to_start_files(root: pl.Path) -> Generator[pl.Path, None, None]:
     """
     Sometimes CPAC crashes without even generating a log directory and just has this
-    file in the output directory. Not to be confused with the file of the same time sometimes generated
+    file in the output directory. Not to be confused with the file of the same time
+    sometimes generated
     next to the pypeline.log file in the log directory.
     """
     return root.glob("**/failedToStart.log")
@@ -113,8 +118,14 @@ class CpacRun:
     crashfiles: list[pl.Path] | None = None
 
     @classmethod
-    def from_failed_to_start_file(cls, failed_to_start_file: pl.Path, base_dir: pl.Path) -> "CpacRun":
-        return cls(base_dir, failed_to_start_file, str(failed_to_start_file.relative_to(base_dir)))
+    def from_failed_to_start_file(
+        cls, failed_to_start_file: pl.Path, base_dir: pl.Path
+    ) -> "CpacRun":
+        return cls(
+            base_dir,
+            failed_to_start_file,
+            str(failed_to_start_file.relative_to(base_dir)),
+        )
 
     @classmethod
     def from_log_file(cls, log_file: pl.Path, base_dir: pl.Path) -> "CpacRun":
@@ -152,7 +163,8 @@ class CpacRun:
                 elif match := re.match(RX_CPAC_END_SUBJECT_WORKFLOW, line):
                     run.subject_workflow = match.group(1)
                 elif (match := re.match(RC_CPAC_END_SUCCESS, line)) or (
-                    run.test_config and (match := re.match(RC_CPAC_END_SUCCESS_TEST_CONFIG, line))
+                    run.test_config
+                    and (match := re.match(RC_CPAC_END_SUCCESS_TEST_CONFIG, line))
                 ):
                     cpac_success = True
                 elif match := re.match(RC_CPAC_END_ERROR, line):
@@ -177,7 +189,13 @@ class CpacRun:
         # fallback to command line argument or filename
         if run.pipeline_config is None and run.command is not None:
             run.pipeline_config = (
-                fb.group(1) if (fb := re.search(RX_CPAC_PIPELINE_CONFIG_COMMAND_FALLBACK, run.command)) else None
+                fb.group(1)
+                if (
+                    fb := re.search(
+                        RX_CPAC_PIPELINE_CONFIG_COMMAND_FALLBACK, run.command
+                    )
+                )
+                else None
             )
         if run.pipeline_config is None:
             run.pipeline_config = str(log_file.relative_to(base_dir))
@@ -221,7 +239,9 @@ class CpacRun:
             "File": f"`{self.file.absolute()}`",
             "Start": self.start,
             "Duration": humanize.naturaldelta(self.diff),
-            "Command": "" if self.command is None else ("<code>" + "<br/>".join(shlex.split(self.command)) + "</code>"),
+            "Command": ""
+            if self.command is None
+            else ("<code>" + "<br/>".join(shlex.split(self.command)) + "</code>"),
             "Version": f"`{self.version}`",
             "Pipeline Config": self.pipeline_config,
             "Subject Workflow": self.subject_workflow,
@@ -230,11 +250,17 @@ class CpacRun:
 
         details_md = TEMPLATE_ENTRY_MD.format(
             title=self.title,
-            details=pd.DataFrame({"Key": out_dict.keys(), "Value": out_dict.values()}).to_markdown(index=False),
+            details=pd.DataFrame(
+                {"Key": out_dict.keys(), "Value": out_dict.values()}
+            ).to_markdown(index=False),
         )
 
         crashfiles_md = (
-            "\n".join([CpacRun.crashfile_to_md(crashfile) for crashfile in self.crashfiles]) if self.crashfiles else ""
+            "\n".join(
+                [CpacRun.crashfile_to_md(crashfile) for crashfile in self.crashfiles]
+            )
+            if self.crashfiles
+            else ""
         )
 
         if not self.success:
@@ -254,9 +280,11 @@ def _gen192_table_proc(df: pd.DataFrame) -> pd.DataFrame:
     # Remove column target_work_flow
     df = df.drop("target_work_flow", axis=1)
 
-    # 010_p010_base-abcd_perturb-ccs_step-functional-masking_conn-nilearn_nuisance-true/
+    # 010_p010_base-abcd_perturb-ccs_step-
+    # functional-masking_conn-nilearn_nuisance-true/
     # sub-NDARINV2VY7YYNW/output/log/
-    # pipeline_p010_base-abcd_perturb-ccs_step-functional-masking_conn-nilearn_nuisance-true/
+    # pipeline_p010_base-abcd_perturb-ccs_step-functional-
+    # masking_conn-nilearn_nuisance-true/
     # sub-NDARINV2VY7YYNW_ses-baselineYear1Arm1/pypeline.log
     #
     # delete everything after first / in pipeline_configh
@@ -265,14 +293,23 @@ def _gen192_table_proc(df: pd.DataFrame) -> pd.DataFrame:
     # 010_p010_base-abcd_perturb-ccs_step-functional-masking_conn-nilearn_nuisance-true
 
     # split pipeline_config into 3 columns
-    df[["id", "pid", "base_pipeline", "perturb_pipeline", "step", "connectivity", "nuisance"]] = df[
-        "pipeline_config"
-    ].str.split("_", expand=True)
+    df[
+        [
+            "id",
+            "pid",
+            "base_pipeline",
+            "perturb_pipeline",
+            "step",
+            "connectivity",
+            "nuisance",
+        ]
+    ] = df["pipeline_config"].str.split("_", expand=True)
 
     # drop pid
     df = df.drop("pid", axis=1)
 
-    # remove everything up to first dash in "base_pipeline", "perturb_pipeline", "step", "connectivity", "nuisance"
+    # remove everything up to first dash in
+    # "base_pipeline", "perturb_pipeline", "step", "connectivity", "nuisance"
     df["base_pipeline"] = df["base_pipeline"].str.split("-", n=1).str[1]
     df["perturb_pipeline"] = df["perturb_pipeline"].str.split("-", n=1).str[1]
     df["step"] = df["step"].str.split("-", n=1).str[1]
@@ -294,12 +331,14 @@ def _gen192_table_proc(df: pd.DataFrame) -> pd.DataFrame:
         ]
     ]
 
-    # remove rows where 'missing_resources', 'node_block', 'previous_node_block' are same
-    # and add count of duplicates as column
-    df["number_of_pipelines_with_this_error"] = df.groupby(["missing_resources", "node_block", "previous_node_block"])[
-        "id"
-    ].transform("count")
-    df = df.drop_duplicates(subset=["missing_resources", "node_block", "previous_node_block"], keep="first")
+    # remove rows where 'missing_resources', 'node_block', 'previous_node_block' are
+    # same and add count of duplicates as column
+    df["number_of_pipelines_with_this_error"] = df.groupby(
+        ["missing_resources", "node_block", "previous_node_block"]
+    )["id"].transform("count")
+    df = df.drop_duplicates(
+        subset=["missing_resources", "node_block", "previous_node_block"], keep="first"
+    )
 
     # save to csv
     df.to_csv("data_clean.csv", index=False)
@@ -317,10 +356,17 @@ class CpacRunCollection:
         files_log = list(find_log_files(search_path))
         # remove failed to start files that have a log file in the same parent directory
         # (i.e. the pipeline was started but crashed before generating a log directory)
-        runs_failed_to_start = [f for f in files_fts if not any(f.parent == f2.parent for f2 in files_log)]
+        runs_failed_to_start = [
+            f for f in files_fts if not any(f.parent == f2.parent for f2 in files_log)
+        ]
 
-        self.runs: list[CpacRun] = [CpacRun.from_log_file(f, base_path) for f in find_log_files(search_path)]
-        self.runs += [CpacRun.from_failed_to_start_file(f, base_path) for f in runs_failed_to_start]
+        self.runs: list[CpacRun] = [
+            CpacRun.from_log_file(f, base_path) for f in find_log_files(search_path)
+        ]
+        self.runs += [
+            CpacRun.from_failed_to_start_file(f, base_path)
+            for f in runs_failed_to_start
+        ]
         # simplified unique titles
         simplified_titles = utils.unique_substrings([r.title for r in self.runs])
         for run, title in zip(self.runs, simplified_titles):
@@ -333,24 +379,34 @@ class CpacRunCollection:
 
         df_overview = pd.DataFrame.from_records(records)
         df_overview["success_state"] = df_overview["success"]
-        df_overview["success"] = np.where(df_overview["success"], utils.HTML_SYMBOL_SUCCESS, utils.HTML_SYMBOL_FAILURE)
+        df_overview["success"] = np.where(
+            df_overview["success"], utils.HTML_SYMBOL_SUCCESS, utils.HTML_SYMBOL_FAILURE
+        )
 
         # Set to pipeline_config or file if no pipeline_config is available
-        df_overview["title"] = df_overview["title"].apply(lambda x: utils.markdown_heading_to_link(x))
+        df_overview["title"] = df_overview["title"].apply(
+            lambda x: utils.markdown_heading_to_link(x)
+        )
 
         slowest_pipeline_duration = df_overview["duration"].max()
         # Set None durations to 0
         df_overview["duration"] = df_overview["duration"].fillna(timedelta(0))
         # humanize duration
-        df_overview["duration"] = df_overview["duration"].apply(lambda x: humanize.naturaldelta(x))
+        df_overview["duration"] = df_overview["duration"].apply(
+            lambda x: humanize.naturaldelta(x)
+        )
 
         # Overview table
-        md_table_overview = df_overview[["title", "duration", "success"]].to_markdown(index=False)
+        md_table_overview = df_overview[["title", "duration", "success"]].to_markdown(
+            index=False
+        )
 
         # Error table
         md_table_gen192_errors: str | None = None
         if include_gen192_table:
-            error_records = [x.error_info for x in self.runs if x.error_info is not None]
+            error_records = [
+                x.error_info for x in self.runs if x.error_info is not None
+            ]
             if len(error_records) > 0:
                 df_errors = pd.DataFrame.from_records(error_records)
                 df_errors = _gen192_table_proc(df_errors)
@@ -360,7 +416,8 @@ class CpacRunCollection:
         n_runs = len(self.runs)
         md_intro_text = (
             f"Ran {n_runs} CPAC pipelines with "
-            f"{df_overview['success_state'].sum() / n_runs * 100:.2f}% success rate.\n\n"
+            f"{df_overview['success_state'].sum() / n_runs * 100:.2f}% success rate."
+            "\n\n"
             f"Slowest pipeline took {humanize.naturaldelta(slowest_pipeline_duration)} "
             f"(first until last log message).\n\n"
             f"Pipelines found under <code>{self.search_path}</code>.\n\n"
@@ -375,17 +432,28 @@ class CpacRunCollection:
         return TEMPLATE_REPORT_MD.format(
             header=md_intro_text,
             footer=md_footer,
-            summary=md_table_overview + ("" if md_table_gen192_errors is None else ("\n\n" + md_table_gen192_errors)),
+            summary=md_table_overview
+            + (
+                ""
+                if md_table_gen192_errors is None
+                else ("\n\n" + md_table_gen192_errors)
+            ),
             details=md_details,
         )
 
 
 def make_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Generate a report on CPAC runs.")
-    parser.add_argument("path", type=str, help="Path to the directory containing the log files.")
-    parser.add_argument("-o", "--output", type=str, help="Path to the output file.", required=False)
     parser.add_argument(
-        "--gen192", action="store_true", help="Generate a missing resource report for the 192 pipeline configs."
+        "path", type=str, help="Path to the directory containing the log files."
+    )
+    parser.add_argument(
+        "-o", "--output", type=str, help="Path to the output file.", required=False
+    )
+    parser.add_argument(
+        "--gen192",
+        action="store_true",
+        help="Generate a missing resource report for the 192 pipeline configs.",
     )
     return parser
 
@@ -393,7 +461,9 @@ def make_parser() -> argparse.ArgumentParser:
 def main() -> None:
     args = make_parser().parse_args()
     path_searchdir = pl.Path(args.path)
-    md_report = CpacRunCollection(path_searchdir, path_searchdir).report_md(include_gen192_table=args.gen192)
+    md_report = CpacRunCollection(path_searchdir, path_searchdir).report_md(
+        include_gen192_table=args.gen192
+    )
 
     if args.output:
         with open(args.output, "w", encoding="UTF-8") as f:
