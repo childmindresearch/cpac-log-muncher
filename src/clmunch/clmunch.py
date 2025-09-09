@@ -238,7 +238,9 @@ class CpacRun:
         out_dict = {
             "File": f"`{self.file.absolute()}`",
             "Start": self.start,
-            "Duration": humanize.naturaldelta(self.diff),
+            "Duration": humanize.naturaldelta(self.diff)
+            if self.diff is not None
+            else None,
             "Command": ""
             if self.command is None
             else ("<code>" + "<br/>".join(shlex.split(self.command)) + "</code>"),
