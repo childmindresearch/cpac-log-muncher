@@ -3,7 +3,7 @@ name = "clmunch"
 version = "0.1.0"
 description = "Accumulate and summarize run (error) data across many CPAC executions."
 authors = [
-  {name = "CMI DAIR", email = "dair@childmind.org"}
+  { name = "CMI DAIR", email = "dair@childmind.org" }
 ]
 license = "LGPL-2.1"
 readme = "README.md"
